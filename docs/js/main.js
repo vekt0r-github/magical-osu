@@ -1,57 +1,32 @@
-document.addEventListener("DOMContentLoaded", function () {
-
-    // Add icon element IDs here to swap their src on dark mode toggle.
-    // Format: "<element-id>": { light: "<light-mode-path>", dark: "<dark-mode-path>" }
-    const icon_map = {
-        "theme-icon": {
-            light: "/images/moon.svg",
-            dark: "/images/sun.svg",
-        },
-        "github-icon": {
-            light: "/images/github.svg",
-            dark: "/images/github-white.svg",
-        },
-        "hakyll-icon": {
-            light: "/images/hakyll.svg",
-            dark: "/images/hakyll-white.svg",
-        },
-        "menu-icon": {
-            light: "/images/menu.svg",
-            dark: "/images/menu-white.svg",
-        },
-    };
-
-    const theme = localStorage.getItem("theme");
-    const is_dark = theme === "dark";
-
-    if (is_dark) {
-        document.documentElement.classList.toggle("dark-mode", is_dark);
-
+document.addEventListener("DOMContentLoaded", function() {
+  const iconMap = {
+    "theme-icon": { light: "/images/moon.svg", dark: "/images/sun.svg" },
+    "github-icon": { light: "/images/github.svg", dark: "/images/github-white.svg" },
+    "hakyll-icon": { light: "/images/hakyll.svg", dark: "/images/hakyll-white.svg" },
+    "menu-icon": { light: "/images/menu.svg", dark: "/images/menu-white.svg" }
+  };
+  const isDark = document.documentElement.classList.contains("dark-mode");
+  function setIcons(isDark2) {
+    for (const [id, paths] of Object.entries(iconMap)) {
+      const img = document.getElementById(id);
+      if (img) {
+        img.src = isDark2 ? paths.dark : paths.light;
+      }
     }
-
-    function setIcons(is_dark) {
-        for (const [id, paths] of Object.entries(icon_map)) {
-            const img = document.getElementById(id);
-
-            if (img) {
-                img.src = is_dark ? paths.dark : paths.light;
-
-            }
-        }
-    }
-
-    window.toggleDarkMode = function () {
-        const is_dark = document.documentElement.classList.toggle("dark-mode");
-        localStorage.setItem("theme", is_dark ? "dark" : "light");
-        setIcons(is_dark);
-
-    };
-
-    setIcons(is_dark);
-
-    document.getElementById("hamburger-button").addEventListener("click", function () {
-        const nav = document.getElementById("nav-menu");
+  }
+  window.toggleDarkMode = function() {
+    const isDark2 = document.documentElement.classList.toggle("dark-mode");
+    localStorage.setItem("theme", isDark2 ? "dark" : "light");
+    setIcons(isDark2);
+  };
+  setIcons(isDark);
+  const hamburger = document.getElementById("hamburger-button");
+  if (hamburger) {
+    hamburger.addEventListener("click", function() {
+      const nav = document.getElementById("nav-menu");
+      if (nav) {
         nav.classList.toggle("active");
-
+      }
     });
+  }
 });

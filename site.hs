@@ -1,132 +1,87 @@
---------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
-import              Data.Monoid (mappend)
-import              Data.Maybe (fromMaybe)
-import              Control.Monad (forM_)
-import qualified    Data.Text as T
-import              System.FilePath ((</>))
+import System.FilePath ((</>))
 
-import              Hakyll
-import              Slug (toSlug)
+import Hakyll
+
+import Compilers (sassCompiler, tsCompiler)
+import Config    (blogsDir, hakyllConfig, siteRoot, tabPaths, templateDir)
+import Context   (postCtx)
+import Routes    (titleRoute)
 
 --------------------------------------------------------------------------------
--- TODO: Set this to your deployed site URL
-root :: String
-root = "https://example.com"
-
-path_to_template :: FilePath
-path_to_template = "src/templates/"
-
-path_to_blogs :: FilePath
-path_to_blogs = "src/blogs"
-
--- List all tab pages here. home.md and blog.md have special routing (see below).
--- Add or remove tab files as needed.
-path_to_tabs :: [FilePath]
-path_to_tabs = [
-    "src/tabs/home.md",
-    "src/tabs/tab1.md",
-    "src/tabs/tab2.md",
-    "src/tabs/blog.md",
-    "src/tabs/tab3.md"
-    ]
 
 makePattern :: FilePath -> FilePath -> Pattern
-makePattern path1 path2 = fromGlob (path1 </> path2)
+makePattern dir glob = fromGlob (dir </> glob)
 
 makeIdentifier :: FilePath -> FilePath -> Identifier
-makeIdentifier path1 path2 = fromFilePath (path1 </> path2)
+makeIdentifier dir file = fromFilePath (dir </> file)
+
+--------------------------------------------------------------------------------
 
 main :: IO ()
-main = hakyllWith config $ do
-    match (makePattern path_to_template "*") $ compile templateBodyCompiler
+main = hakyllWith hakyllConfig $ do
+    match (makePattern templateDir "*") $ compile templateBodyCompiler
 
-    forM_ [
-        "images/*",
-        "src/robots.txt",
-        "src/css/*",
-        "src/js/*"
-        ] $ \f -> match f $ do
-        route   $ gsubRoute "src/" (const "")
+    match "static/**" $ do
+        route   $ gsubRoute "static/" (const "")
         compile copyFileCompiler
+
+    -- SCSS: track partials so changes to _*.scss trigger recompile of entry point
+    scssPartialDep <- makePatternDependency "src/scss/_*.scss"
+    match "src/scss/_*.scss" $ compile getResourceBody
+    rulesExtraDependencies [scssPartialDep] $
+        match "src/scss/default.scss" $ do
+            route   $ constRoute "css/default.css"
+            compile sassCompiler
+
+    -- TypeScript
+    match "src/ts/main.ts" $ do
+        route   $ constRoute "js/main.js"
+        compile tsCompiler
 
     match "src/tabs/home.md" $ do
         route   $ constRoute "index.html"
         compile $ pandocCompiler
-            >>= loadAndApplyTemplate (makeIdentifier path_to_template "default.html")   defaultContext
+            >>= loadAndApplyTemplate (makeIdentifier templateDir "default.html") defaultContext
             >>= relativizeUrls
 
     match "src/tabs/blog.md" $ do
-        route   $ gsubRoute "src/tabs/" (const "") `composeRoutes`
-                  gsubRoute "\\.md$" (const "/index.html")
-
+        route $ gsubRoute "src/tabs/" (const "") `composeRoutes`
+                gsubRoute "\\.md$" (const "/index.html")
         compile $ do
-            blogs <- recentFirst =<< loadAll (makePattern path_to_blogs "*")
+            blogs <- recentFirst =<< loadAll (makePattern blogsDir "*")
             let indexCtx =
                     listField "blogs" postCtx (return blogs) <>
                     defaultContext
-
             pandocCompiler
                 >>= applyAsTemplate indexCtx
-                >>= loadAndApplyTemplate (makeIdentifier path_to_template "default.html")   indexCtx
+                >>= loadAndApplyTemplate (makeIdentifier templateDir "default.html") indexCtx
                 >>= relativizeUrls
 
-    match (fromList [
-        "src/tabs/tab1.md",
-        "src/tabs/tab2.md",
-        "src/tabs/tab3.md"
-        ]) $ do
-        route   $ gsubRoute "src/tabs/" (const "") `composeRoutes` 
-                  gsubRoute "\\.md$" (const "/index.html")
-
+    match (fromList ["src/tabs/tab1.md", "src/tabs/tab2.md", "src/tabs/tab3.md"]) $ do
+        route $ gsubRoute "src/tabs/" (const "") `composeRoutes`
+                gsubRoute "\\.md$" (const "/index.html")
         compile $ pandocCompiler
-            >>= loadAndApplyTemplate (makeIdentifier path_to_template "default.html")   defaultContext
+            >>= loadAndApplyTemplate (makeIdentifier templateDir "default.html") defaultContext
             >>= relativizeUrls
 
-    match (makePattern path_to_blogs "*") $ do
+    match (makePattern blogsDir "*") $ do
         let ctx = constField "type" "article" <> postCtx
-
         route   $ metadataRoute (titleRoute "blogs/")
         compile $ pandocCompiler
-            >>= loadAndApplyTemplate (makeIdentifier path_to_template "blog_post.html")     ctx
+            >>= loadAndApplyTemplate (makeIdentifier templateDir "blog_post.html") ctx
             >>= saveSnapshot "content"
-            >>= loadAndApplyTemplate (makeIdentifier path_to_template "default.html")       ctx
+            >>= loadAndApplyTemplate (makeIdentifier templateDir "default.html")   ctx
             >>= relativizeUrls
 
     create ["sitemap.xml"] $ do
         route idRoute
         compile $ do
-            blogs <- recentFirst =<< loadAll (makePattern path_to_blogs "*")
-            singlePages <- loadAll (fromList $ map (makeIdentifier "") path_to_tabs)
-            let pages = blogs <> singlePages
+            blogs       <- recentFirst =<< loadAll (makePattern blogsDir "*")
+            singlePages <- loadAll (fromList $ map (makeIdentifier "") tabPaths)
+            let pages      = blogs <> singlePages
                 sitemapCtx =
-                    constField "root" root <>
+                    constField "root" siteRoot <>
                     listField "pages" postCtx (return pages)
             makeItem ""
-                >>= loadAndApplyTemplate (makeIdentifier path_to_template "sitemap.xml")    sitemapCtx
-
-config :: Configuration
-config = defaultConfiguration
-    {
-        destinationDirectory = "docs"
-    }
-
---------------------------------------------------------------------------------
-
---titleRoute :: FilePath -> Metadata -> Routes
-titleRoute parent = constRoute . (fileNameFromTitle parent)
-
--- turn title into Text, slugify, then convert it back into a string with ".html"
-fileNameFromTitle :: FilePath -> Metadata -> FilePath
-fileNameFromTitle parent = (parent ++) . T.unpack . (`T.append` ".html") . toSlug . T.pack . getTitleFromMeta
-
--- gets the title using lookupString from Metadata
--- returns either the title or "no title" as a string
-getTitleFromMeta :: Metadata -> String
-getTitleFromMeta = fromMaybe "no title" . lookupString "title"
-
-postCtx :: Context String
-postCtx =
-    constField "root" root <>
-    dateField "date" "%B %e, %Y" <>
-    defaultContext
+                >>= loadAndApplyTemplate (makeIdentifier templateDir "sitemap.xml") sitemapCtx

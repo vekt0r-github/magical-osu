@@ -24,3 +24,5 @@ cabal.project.local~
 _cache/
 _tmp/
 .ipynb_checkpoints/
+node_modules/
+package-lock.json
