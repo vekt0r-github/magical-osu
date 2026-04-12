@@ -2,9 +2,7 @@
 
 This file will explain everything on the visual aspect of the website, excluding gameplay related aspects. This specifically means how each page looks in format, art, and layout. Non-game user interaction is also described in this file.
 
-The website will officially support 3 dimensions:
-- Phone: 852 x 393 px
-- Tablet: 1180 x 820 px
+The website will officially support these dimensions:
 - Monitor: 1920 x 1080 px
 
 ## Home tab

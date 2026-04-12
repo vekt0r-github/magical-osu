@@ -2,13 +2,15 @@
 
 This file will explain everything on the gameplay aspect of the website, specifically for all songs. This includes the core gameplay, mechanics, and gameplay visuals.
 
-The gameplay will officially support 3 dimensions:
-- Phone: 852 x 393 px
-- Tablet: 1180 x 820 px
+The gameplay will officially support these dimensions:
 - Monitor: 1920 x 1080 px
 
 ## Core Gameplay
 This is a rhythm game that focuses on mouse movement and and accuracy. Notes appear in relation to the beats in the selected song. The goal of the player is to accurately hit the notes and complete the song.
+
+The game should feel satisfying and rhythmic. The margins for the judgement window and the acceptable range of angles are the defining factor in making the gameplay feel satisfying.
+
+A good analogy is comparing this gameplay to Beat Saber, where note hitting is determined by swiping (slashing in Beat Saber).
 
 ## Notes
 There are two different types of notes in the game:
