@@ -2,7 +2,9 @@ name: Sync PR to upstream
 
 on:
   push:
-    branches-ignore: [main]
+    branches-ignore:
+      - main
+      - 'pr-meta/**'
 
 jobs:
   sync-pr:
@@ -10,13 +12,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch PR metadata
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          git fetch origin pr-meta/$BRANCH 2>/dev/null || {
+            echo "No pr-meta/$BRANCH branch found — skipping PR sync."
+            exit 0
+          }
+          git show origin/pr-meta/$BRANCH:pr-meta.json > /tmp/pr-meta.json
+
       - name: Create or update upstream PR
         env:
           GH_TOKEN: ${{ secrets.UPSTREAM_PAT }}
           BRANCH: ${{ github.ref_name }}
         run: |
-          TITLE=$(jq -r .title .github/pr-meta.json)
-          BODY=$(jq -r .body .github/pr-meta.json)
+          [ -f /tmp/pr-meta.json ] || exit 0
+
+          TITLE=$(jq -r .title /tmp/pr-meta.json)
+          BODY=$(jq -r .body /tmp/pr-meta.json)
 
           EXISTING=$(gh pr list \
             --repo Twigums/magical-osu \
