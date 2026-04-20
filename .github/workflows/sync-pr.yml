@@ -1,0 +1,36 @@
+name: Sync PR to upstream
+
+on:
+  push:
+    branches-ignore: [main]
+
+jobs:
+  sync-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create or update upstream PR
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_PAT }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          TITLE=$(jq -r .title .github/pr-meta.json)
+          BODY=$(jq -r .body .github/pr-meta.json)
+
+          EXISTING=$(gh pr list \
+            --repo Twigums/magical-osu \
+            --head vekt0r-github:$BRANCH \
+            --json number -q '.[0].number')
+
+          if [ -n "$EXISTING" ]; then
+            gh pr edit $EXISTING \
+              --repo Twigums/magical-osu \
+              --title "$TITLE" --body "$BODY"
+          else
+            gh pr create \
+              --repo Twigums/magical-osu \
+              --head vekt0r-github:$BRANCH \
+              --base main \
+              --title "$TITLE" --body "$BODY"
+          fi
